@@ -8,7 +8,7 @@ local HearType = {
         name = "medium"
     },
     [3] = {
-        distance = 600,
+        distance = 500,
         name = "large"
     }
 }
@@ -26,6 +26,7 @@ if SERVER then
         end
 
         ply:SetNWInt("TalkType", talktype)
+        ply:SendLua([[notification.AddLegacy("Voice mode is ]] .. HearType[talktype].name .. [[",0,1)]])
     end
 
     local Switch = {
@@ -69,9 +70,12 @@ elseif CLIENT then
 
         if btn == KEY_P or btn == KEY_O then
             TalkPreview = true
-            LastTalkChange = CurTime() + 2
+            LastTalkChange = CurTime() + 4
         end
     end)
+
+    local start, oldDist, nDist = HearType[LocalPlayer():GetNWInt("TalkType", 2)].distance, -1, -1
+    local animationTime = 0.1
 
     hook.Add("PostDrawTranslucentRenderables", "test", function()
         if LastTalkChange <= CurTime() then
@@ -80,7 +84,26 @@ elseif CLIENT then
 
         if TalkPreview then
             render.SetColorMaterial()
-            render.DrawWireframeSphere(LocalPlayer():GetPos(), HearType[LocalPlayer():GetNWInt("TalkType", 2)].distance, 600, 600, Color(0, 255, 255, 177), true)
+            local dist = HearType[LocalPlayer():GetNWInt("TalkType", 2)].distance
+
+            if (oldDist == -1 and nDist == -1) then
+                oldDist = dist
+                nDist = dist
+            end
+
+            local smoothDist = Lerp((SysTime() - start) / animationTime, oldDist, nDist)
+
+            if nDist ~= dist then
+                if (smoothDist ~= dist) then
+                    nDist = smoothDist
+                end
+
+                oldDist = nDist
+                start = SysTime()
+                nDist = dist
+            end
+
+            render.DrawWireframeSphere(LocalPlayer():GetPos(), smoothDist, 20, 20, Color(0, 51, 255), true)
         end
     end)
 end
